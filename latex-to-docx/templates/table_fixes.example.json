@@ -1,0 +1,35 @@
+{
+  "tables": [
+    {
+      "match": {
+        "cols": 7,
+        "contains": ["Method", "SDR"]
+      },
+      "merges": [
+        {"row": 1, "col_start": 2, "col_end": 4, "text": "Group A"},
+        {"row": 1, "col_start": 5, "col_end": 7, "text": "Group B"}
+      ]
+    },
+    {
+      "match": {
+        "cols": 2,
+        "contains": ["Hyperparameter", "Value"]
+      },
+      "merges": [
+        {"row": 2, "col_start": 1, "col_end": 2, "text": "Pretraining"}
+      ],
+      "cells": [
+        {"row": 4, "col": 2, "text": "10^-4"}
+      ]
+    },
+    {
+      "match": {
+        "cols": 5,
+        "contains": ["Model"]
+      },
+      "vmerges": [
+        {"row_start": 2, "row_end": 3, "col": 1}
+      ]
+    }
+  ]
+}
