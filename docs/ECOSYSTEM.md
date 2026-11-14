@@ -92,6 +92,7 @@
 | [paper-writing-audit](../paper-writing-audit/) | 写作辅助 / 润色 / 审稿 | 差异：只读、分阶段、不改稿，重点在 `and`/分号/拆句等机械结构。可借鉴：Boom5426 的 `anti-defensive-writing`、`stats-reporting-audit`；pengkangzhen 的 `hedge-audit`/`ai-tone-audit` |
 | [pdf-review-highlights](../pdf-review-highlights/) | 分类高亮 / 批注回写 LaTeX | 差异：整句补全、跨行/跨公式/跨栏/跨页、保留原批注、不改正文；同类最少 |
 | [latex-to-docx](../latex-to-docx/) | Pandoc / LaTeX→Word 转换 | 差异：面向论文的 LaTeX→DOCX，原生 OMML 公式、表格合并恢复、Word COM 排版与渲染验收；本次调研未专门覆盖格式转换类 skill |
+| [scaling-law-frontier-scout](../scaling-law-frontier-scout/) | 通用 idea generation + 文献查新 | 差异：预消化 scaling law 底座（44 篇论文卡片）、可识别性视角、代码库接地、顶会筛选；下游只做定向补搜 |
 
 ## 七、选型与安全提醒
 
