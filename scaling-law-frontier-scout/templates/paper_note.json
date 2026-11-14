@@ -1,0 +1,29 @@
+{
+  "title": "Training Compute-Optimal Large Language Models",
+  "arxiv_id": "2203.15556",
+  "year": 2022,
+  "venue": "NeurIPS",
+  "axis": "params-data-compute",
+  "setup": "400+ models, 70M-16B params, 5B-500B tokens, Chinchilla scaling suite",
+  "law_form": "L(N,D) = E + A/N^alpha + B/D^beta",
+  "exponents": "alpha~0.34, beta~0.28, E~1.69; compute-optimal N/D ~ 0.50/0.50",
+  "assumptions": [
+    "power-law regime holds over the fitted range",
+    "single-epoch training",
+    "fixed architecture family and tokenizer",
+    "fit excludes very small models"
+  ],
+  "evidence_strength": "author experiment; third-party replication raises fit concerns (arXiv:2404.10102)",
+  "limitations": [
+    "fit range limited; extrapolation to frontier scale uncertain",
+    "allocation depends on tokenizer and data distribution"
+  ],
+  "key_claims": [
+    "compute-optimal training uses roughly 20 tokens per parameter",
+    "model size and data should scale roughly equally with compute"
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2203.15556",
+    "https://arxiv.org/abs/2404.10102"
+  ]
+}
