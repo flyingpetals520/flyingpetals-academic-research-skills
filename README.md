@@ -2,7 +2,7 @@
 
 个人维护的学术研究 skill 集合，面向 Claude Code（以及其它读取 `SKILL.md` 约定的 Agent）。每个 skill 是一个独立文件夹，包含一份 `SKILL.md`（触发条件与工作流），以及可选的 `references/`（方法论与案例库）、`scripts/`（辅助脚本）、`templates/`（报告模板）。
 
-三个 skill 分别覆盖学术研究中的三个环节：**找方向 / 写论文 / 改批注 PDF**。
+四个 skill 覆盖学术研究中的四个环节：**找方向 / 写论文 / 改批注 PDF / 转可编辑 Word**。
 
 ## Skills 一览
 
@@ -11,6 +11,7 @@
 | [lm-arch-bottleneck-scout](lm-arch-bottleneck-scout/) | LLM 架构与训练算法的瓶颈挖掘、创新点发现 | "这个方向下一步该做什么""帮我找一个 research idea" |
 | [paper-writing-audit](paper-writing-audit/) | 论文写作分阶段审查（只报告、不改稿） | "审查这篇论文的写作""检查长句和分号" |
 | [pdf-review-highlights](pdf-review-highlights/) | PDF 整句高亮批注的创建与补全 | "给这篇论文加批注""把高亮补成整句" |
+| [latex-to-docx](latex-to-docx/) | LaTeX 论文转可编辑 Word（DOCX） | "给合作者一份可编辑 Word""公式和表格要保真" |
 
 ## 各 skill 说明
 
@@ -58,6 +59,24 @@
 - `scripts/add_review_annotation.py`：按文本查找添加一处高亮 + 便签
 - `scripts/complete_sentence_highlights.py`：把所有既有高亮补全为整句（支持 `--dry-run --report` 预检）
 
+### 4. latex-to-docx — LaTeX 论文转可编辑 Word
+
+从 **LaTeX 源文件**（不是 PDF）生成可编辑的 Word 工作副本，适合给合作者/审稿人改稿：
+
+- Pandoc 3.x 生成**原生 OMML 公式**，不经过图片；PDF 图按 300 dpi 转 PNG
+- 保留表格结构，自动恢复合并表头；论文特定的表格修补写进 `table_fixes.json`
+- 从 `.aux` 回填 `ef` / `\eqref`，用 `.bib` + CSL 生成参考文献
+- Word COM 排版（Windows + Word）：页边距、字体、图表缩放、表头跨页重复、页码，并导出 PDF 验收
+- 硬约束：不改源 `.tex`，不把公式转图片，不以 XML 计数代替渲染验收
+
+脚本：
+
+- `scripts/latex_to_docx.py`：LaTeX 预处理 + Pandoc 转换 + DOCX 表格隔断
+- `scripts/inspect_docx.py`：统计公式/图/表、dump 表头、渲染抽查
+- `scripts/format_docx.py`：Word COM 排版、通用表头合并、应用 manifest、导出 PDF
+- `templates/table_fixes.example.json`：表格修补清单模板
+
+
 ## 目录结构
 
 ```text
@@ -70,9 +89,14 @@ flyingpetals-academic-research-skills/
 │   ├── references/
 │   ├── scripts/
 │   └── templates/
-└── pdf-review-highlights/
+├── pdf-review-highlights/
+│   ├── SKILL.md
+│   └── scripts/
+└── latex-to-docx/
     ├── SKILL.md
-    └── scripts/
+    ├── references/
+    ├── scripts/
+    └── templates/
 ```
 
 ## 使用方式
@@ -84,6 +108,7 @@ git clone https://github.com/flyingpetals520/flyingpetals-academic-research-skil
 cp -r flyingpetals-academic-research-skills/lm-arch-bottleneck-scout ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/paper-writing-audit ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/pdf-review-highlights ~/.claude/skills/
+cp -r flyingpetals-academic-research-skills/latex-to-docx ~/.claude/skills/
 ```
 
 也可以只拷单个 skill。其它支持 `SKILL.md` 约定的 Agent，按各自的 skills 目录放置即可。
@@ -93,6 +118,7 @@ cp -r flyingpetals-academic-research-skills/pdf-review-highlights ~/.claude/skil
 - `pdf-review-highlights`：Python + PyMuPDF ≥ 1.22（`pip install pymupdf`）
 - `paper-writing-audit`：`scan_sentences.py` 仅使用 Python 标准库
 - `lm-arch-bottleneck-scout`：纯方法论，无额外依赖
+- `latex-to-docx`：Pandoc ≥ 2.11（推荐 3.x）+ `python-docx`、`PyMuPDF`、`pywin32`；排版步骤需要 Windows + Microsoft Word
 
 ## 联动关系
 
