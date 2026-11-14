@@ -2,7 +2,7 @@
 
 个人维护的学术研究 skill 集合，面向 Claude Code（以及其它读取 `SKILL.md` 约定的 Agent）。每个 skill 是一个独立文件夹，包含一份 `SKILL.md`（触发条件与工作流），以及可选的 `references/`（方法论与案例库）、`scripts/`（辅助脚本）、`templates/`（报告模板）。
 
-四个 skill 覆盖学术研究中的四个环节：**找方向 / 写论文 / 改批注 PDF / 转可编辑 Word**。
+五个 skill 覆盖学术研究中的五个环节：**找方向 / scaling law 前沿 / 写论文 / 改批注 PDF / 转可编辑 Word**。
 
 ## Skills 一览
 
@@ -12,6 +12,7 @@
 | [paper-writing-audit](paper-writing-audit/) | 论文写作分阶段审查（只报告、不改稿） | "审查这篇论文的写作""检查长句和分号" |
 | [pdf-review-highlights](pdf-review-highlights/) | PDF 整句高亮批注的创建与补全 | "给这篇论文加批注""把高亮补成整句" |
 | [latex-to-docx](latex-to-docx/) | LaTeX 论文转可编辑 Word（DOCX） | "给合作者一份可编辑 Word""公式和表格要保真" |
+| [scaling-law-frontier-scout](scaling-law-frontier-scout/) | Scaling law 文献综合、前沿方向与代码库接地 | "梳理 scaling law""结合代码库找顶会方向" |
 
 ## 各 skill 说明
 
@@ -76,6 +77,25 @@
 - `scripts/format_docx.py`：Word COM 排版、通用表头合并、应用 manifest、导出 PDF
 - `templates/table_fixes.example.json`：表格修补清单模板
 
+### 5. scaling-law-frontier-scout — Scaling law 前沿挖掘
+
+内置**预消化文献底座**：不让下游模型重新检索整个领域，而是先读作者已经精读、核对过的 scaling law 综述与论文卡片。
+
+- `references/foundations.md`：从 Kaplan 到 Chinchilla 的范式转移、Chinchilla 复现与 TPP-coverage 可识别性、八条轴地图
+- `references/axis-architecture.md`：深度/宽度/μP、MoE/稀疏专家、循环/递归深度
+- `references/axis-training.md`：数据 scaling、优化器/训练配方、推理最优/过训练
+- `references/failures-and-tensions.md`：涌现/mirage、broken law、double descent、数据耗尽
+- `references/innovation-moves.md`：从 44 篇论文卡片归纳的创新动作与方向生成 playbook
+- `references/canonical-papers.md`：论文卡片（arXiv / venue / 证据等级 / 坐标定义）
+
+工作流：读底座 → 只在缺口处定向检索 → 综合规律/矛盾 → 可选代码库只读扫描 → 生成可证伪方向卡 → 顶会适配评分。
+
+脚本：
+
+- `scripts/search_arxiv.py`：定向补搜
+- `scripts/scan_repo.py`：只读扫描当前项目代码库
+- `scripts/build_matrix.py`：论文笔记 → 对比矩阵
+
 
 ## 目录结构
 
@@ -92,7 +112,12 @@ flyingpetals-academic-research-skills/
 ├── pdf-review-highlights/
 │   ├── SKILL.md
 │   └── scripts/
-└── latex-to-docx/
+├── latex-to-docx/
+│   ├── SKILL.md
+│   ├── references/
+│   ├── scripts/
+│   └── templates/
+└── scaling-law-frontier-scout/
     ├── SKILL.md
     ├── references/
     ├── scripts/
@@ -109,6 +134,7 @@ cp -r flyingpetals-academic-research-skills/lm-arch-bottleneck-scout ~/.claude/s
 cp -r flyingpetals-academic-research-skills/paper-writing-audit ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/pdf-review-highlights ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/latex-to-docx ~/.claude/skills/
+cp -r flyingpetals-academic-research-skills/scaling-law-frontier-scout ~/.claude/skills/
 ```
 
 也可以只拷单个 skill。其它支持 `SKILL.md` 约定的 Agent，按各自的 skills 目录放置即可。
@@ -119,6 +145,7 @@ cp -r flyingpetals-academic-research-skills/latex-to-docx ~/.claude/skills/
 - `paper-writing-audit`：`scan_sentences.py` 仅使用 Python 标准库
 - `lm-arch-bottleneck-scout`：纯方法论，无额外依赖
 - `latex-to-docx`：Pandoc ≥ 2.11（推荐 3.x）+ `python-docx`、`PyMuPDF`、`pywin32`；排版步骤需要 Windows + Microsoft Word
+- `scaling-law-frontier-scout`：Python 3.9+（仅标准库）；无付费 API
 
 ## 联动关系
 
@@ -128,3 +155,5 @@ paper-writing-audit  ──生成批注清单──▶  pdf-review-highlights
 ```
 
 `paper-writing-audit` 检测到环境中有 `pdf-review-highlights` 时，会把审查结果自动转成批注 PDF。
+
+`lm-arch-bottleneck-scout` 找架构问题；`scaling-law-frontier-scout` 判断这个问题在 scaling 上是否值得做、怎么做实验。
