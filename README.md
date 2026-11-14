@@ -65,7 +65,7 @@
 
 - Pandoc 3.x 生成**原生 OMML 公式**，不经过图片；PDF 图按 300 dpi 转 PNG
 - 保留表格结构，自动恢复合并表头；论文特定的表格修补写进 `table_fixes.json`
-- 从 `.aux` 回填 `ef` / `\eqref`，用 `.bib` + CSL 生成参考文献
+- 从 `.aux` 回填 `\ref` / `\eqref`，用 `.bib` + CSL 生成参考文献
 - Word COM 排版（Windows + Word）：页边距、字体、图表缩放、表头跨页重复、页码，并导出 PDF 验收
 - 硬约束：不改源 `.tex`，不把公式转图片，不以 XML 计数代替渲染验收
 
