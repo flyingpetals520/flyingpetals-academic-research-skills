@@ -84,13 +84,14 @@
 - [sickn33/agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills)（~50k★）
 - [paper-writing-hub](https://socket.dev/npm/package/paper-writing-hub) — npm 聚合安装器，把 8–9 个学术合集（含 ARS、CCAS、nature-skills 等）装成 32 个 Claude Code skills。
 
-## 六、本仓库三个 skill 的相对位置
+## 六、本仓库 skill 的相对位置
 
 | 本仓库 skill | 同类生态 | 差异 / 可借鉴点 |
 |---|---|---|
 | [lm-arch-bottleneck-scout](../lm-arch-bottleneck-scout/) | 通用 idea generation + 文献查新 | 差异：领域专用的"瓶颈接力"方法论、五类瓶颈、12 条原语、架构谱系案例库。可借鉴：EvoSkills 的多 persona + ELO 排序、lingzhi227 的 Semantic Scholar 新颖性自检脚本 |
 | [paper-writing-audit](../paper-writing-audit/) | 写作辅助 / 润色 / 审稿 | 差异：只读、分阶段、不改稿，重点在 `and`/分号/拆句等机械结构。可借鉴：Boom5426 的 `anti-defensive-writing`、`stats-reporting-audit`；pengkangzhen 的 `hedge-audit`/`ai-tone-audit` |
 | [pdf-review-highlights](../pdf-review-highlights/) | 分类高亮 / 批注回写 LaTeX | 差异：整句补全、跨行/跨公式/跨栏/跨页、保留原批注、不改正文；同类最少 |
+| [latex-to-docx](../latex-to-docx/) | Pandoc / LaTeX→Word 转换 | 差异：面向论文的 LaTeX→DOCX，原生 OMML 公式、表格合并恢复、Word COM 排版与渲染验收；本次调研未专门覆盖格式转换类 skill |
 
 ## 七、选型与安全提醒
 
