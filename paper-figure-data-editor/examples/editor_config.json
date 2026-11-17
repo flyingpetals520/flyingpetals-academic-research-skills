@@ -1,0 +1,25 @@
+{
+  "name": "figdemo",
+  "python": null,
+  "compile": null,
+  "scripts": [
+    {
+      "file": "figures/make_demo.py",
+      "cwd": "..",
+      "charts": [
+        "demo_line",
+        "demo_bar"
+      ],
+      "copy": [
+        [
+          "figures/out/demo_line.png",
+          "figures/demo_line.png"
+        ],
+        [
+          "figures/out/demo_bar.png",
+          "figures/demo_bar.png"
+        ]
+      ]
+    }
+  ]
+}

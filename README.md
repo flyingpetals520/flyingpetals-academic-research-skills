@@ -2,7 +2,7 @@
 
 个人维护的学术研究 skill 集合，面向 Claude Code（以及其它读取 `SKILL.md` 约定的 Agent）。每个 skill 是一个独立文件夹，包含一份 `SKILL.md`（触发条件与工作流），以及可选的 `references/`（方法论与案例库）、`scripts/`（辅助脚本）、`templates/`（报告模板）。
 
-五个 skill 覆盖学术研究中的五个环节：**找方向 / scaling law 前沿 / 写论文 / 改批注 PDF / 转可编辑 Word**。
+六个 skill 覆盖学术研究中的六个环节：**找方向 / scaling law 前沿 / 写论文 / 改批注 PDF / 转可编辑 Word / 调论文图表数据**。
 
 ## Skills 一览
 
@@ -13,6 +13,7 @@
 | [pdf-review-highlights](pdf-review-highlights/) | PDF 整句高亮批注的创建与补全 | "给这篇论文加批注""把高亮补成整句" |
 | [latex-to-docx](latex-to-docx/) | LaTeX 论文转可编辑 Word（DOCX） | "给合作者一份可编辑 Word""公式和表格要保真" |
 | [scaling-law-frontier-scout](scaling-law-frontier-scout/) | Scaling law 文献综合、前沿方向与代码库接地 | "梳理 scaling law""结合代码库找顶会方向" |
+| [paper-figure-data-editor](paper-figure-data-editor/) | 论文图表数据编辑器：只改数字、不改绘图 | "把图里的数微调一下""改完直接回写图片" |
 
 ## 各 skill 说明
 
@@ -96,6 +97,19 @@
 - `scripts/scan_repo.py`：只读扫描当前项目代码库
 - `scripts/build_matrix.py`：论文笔记 → 对比矩阵
 
+### 6. paper-figure-data-editor — 论文图表数据编辑器
+
+给已有论文仓库加一层"数据可编辑"外壳：**绘图仍由原脚本完成**，编辑器只替换脚本读到的数字，原绘图风格、脚本结构与测量数据都不动。
+
+- 三条铁律：不重写绘图、不写测量文件、不改脚本结构（只在"取值 → 画图"之间插 hook）
+- 六步安装：`scaffold.py` 装到目标仓库 → 填 `editor_config.json` → 给绘图脚本插 4 行 hook → `seed.py` 播种 → `verify_roundtrip.py` 像素级验收 → `serve.py` 打开浏览器编辑器
+- 浏览器操作：表格改数、折线拖点/整条平移、条形拖柱；支持误差棒、非对称误差、CI 带；带历史记录、逐图回退、恢复原始、导出/导入 JSON
+- 写盘：只重跑单张图并写回，或一键重画全部并可选编译论文
+- 参考：`references/hook-recipes.md`（matplotlib/seaborn/横向条形/带 CI）、`references/pitfalls.md`、`references/ui-guide.md`
+- 依赖：Python 标准库；目标仓库原有绘图依赖不变（如 matplotlib）
+
+适合审稿后补数、统一评测协议、对齐基线等需要反复微调图内数字的场景。
+
 
 ## 目录结构
 
@@ -117,11 +131,17 @@ flyingpetals-academic-research-skills/
 │   ├── references/
 │   ├── scripts/
 │   └── templates/
-└── scaling-law-frontier-scout/
+├── scaling-law-frontier-scout/
+│   ├── SKILL.md
+│   ├── references/
+│   ├── scripts/
+│   └── templates/
+└── paper-figure-data-editor/
     ├── SKILL.md
+    ├── assets/
+    ├── examples/
     ├── references/
-    ├── scripts/
-    └── templates/
+    └── scripts/
 ```
 
 ## 使用方式
@@ -135,6 +155,7 @@ cp -r flyingpetals-academic-research-skills/paper-writing-audit ~/.claude/skills
 cp -r flyingpetals-academic-research-skills/pdf-review-highlights ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/latex-to-docx ~/.claude/skills/
 cp -r flyingpetals-academic-research-skills/scaling-law-frontier-scout ~/.claude/skills/
+cp -r flyingpetals-academic-research-skills/paper-figure-data-editor ~/.claude/skills/
 ```
 
 也可以只拷单个 skill。其它支持 `SKILL.md` 约定的 Agent，按各自的 skills 目录放置即可。
@@ -146,6 +167,7 @@ cp -r flyingpetals-academic-research-skills/scaling-law-frontier-scout ~/.claude
 - `lm-arch-bottleneck-scout`：纯方法论，无额外依赖
 - `latex-to-docx`：Pandoc ≥ 2.11（推荐 3.x）+ `python-docx`、`PyMuPDF`、`pywin32`；排版步骤需要 Windows + Microsoft Word
 - `scaling-law-frontier-scout`：Python 3.9+（仅标准库）；无付费 API
+- `paper-figure-data-editor`：Python 3（仅标准库）；目标论文仓库保持原有绘图依赖（如 matplotlib）
 
 ## 联动关系
 

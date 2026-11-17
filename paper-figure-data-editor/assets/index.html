@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>图表数据编辑器</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --line:#dfe3e8; --ink:#1d2129; --muted:#697386;
+    --accent:#2f6fdd; --accent2:#e8f0fe; --warn:#c0392b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink)}
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+         padding:10px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:15px;margin:0 12px 0 0;font-weight:600}
+  button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid var(--line);
+         background:#fff;cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button:hover{filter:brightness(.97)}
+  #dirty{color:var(--warn);font-size:12px;display:none}
+  main{display:flex;gap:18px;padding:18px;align-items:flex-start}
+  aside{width:230px;flex:0 0 230px;background:#fff;border:1px solid var(--line);
+        border-radius:10px;padding:12px;position:sticky;top:62px}
+  aside h2{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+  aside label{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-radius:6px;cursor:pointer}
+  aside label:hover{background:var(--accent2)}
+  #charts{flex:1;display:flex;flex-direction:column;gap:22px;min-width:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px 18px}
+  .card h3{margin:0 0 2px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .undobtn{margin-left:auto;font:13px/1 -apple-system,"Segoe UI",sans-serif;padding:3px 9px;
+           border-radius:5px;border:1px solid var(--line);background:#f7f9fc;cursor:pointer;
+           color:#2f6fdd;font-weight:600}
+  .undobtn:hover{background:var(--accent2)}
+  .undobtn:disabled{color:#b6bcc6;cursor:default;background:#fff}
+  .resetbtn{margin-left:6px;font:13px/1 -apple-system,"Segoe UI",sans-serif;padding:3px 9px;
+            border-radius:5px;border:1px solid var(--line);background:#fff;cursor:pointer;
+            color:#c0392b;font-weight:600}
+  .resetbtn:hover{background:#fdecea}
+  #histPanel{position:fixed;inset:0;background:rgba(20,24,31,.42);display:none;z-index:9000}
+  #histPanel .box{position:absolute;top:6vh;left:50%;transform:translateX(-50%);width:min(760px,92vw);
+                  max-height:82vh;background:#fff;border-radius:10px;box-shadow:0 18px 50px rgba(0,0,0,.3);
+                  display:flex;flex-direction:column;overflow:hidden}
+  #histPanel h2{margin:0;padding:14px 18px;font-size:15px;border-bottom:1px solid var(--line);
+                display:flex;align-items:center;gap:10px}
+  #histPanel .list{overflow:auto;padding:6px 0}
+  #histPanel .item{display:flex;gap:12px;padding:9px 18px;border-bottom:1px solid #f0f2f5;font-size:13px}
+  #histPanel .item:hover{background:#fafbfd}
+  #histPanel .t{color:var(--muted);font-variant-numeric:tabular-nums;min-width:74px}
+  #histPanel .body{flex:1;min-width:0}
+  #histPanel .nm{font-weight:600}
+  #histPanel .df{color:#4a5563;font-size:12px;margin-top:2px;word-break:break-all}
+  #histPanel .item button{height:26px;align-self:center}
+  #histPanel .empty{padding:26px 18px;color:var(--muted);text-align:center}
+  .card .sub{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .lockbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:2px 0 10px;
+           padding:6px 10px;background:#f7f9fc;border:1px solid var(--line);
+           border-radius:7px;font-size:12.5px}
+  .lockbar select{font:inherit;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:#fff}
+  .lockbar .hint{color:var(--muted);font-size:11.5px;margin-left:auto}
+  .lockbar.on{background:#e8f0fe;border-color:#bcd2f7}
+  svg{width:100%;height:auto;display:block}
+  table{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px}
+  th,td{border:1px solid var(--line);padding:4px 6px;text-align:center}
+  th{background:#f1f3f6;font-weight:600}
+  th.rowhead,td.rowhead{text-align:left;background:#fafbfc;min-width:150px}
+  input{border:none;background:transparent;font:inherit;width:100%;text-align:center;padding:3px 2px}
+  input:focus{outline:2px solid var(--accent2);border-radius:3px}
+  input.txt{text-align:left}
+  .tools{display:flex;gap:8px;margin-top:8px}
+  .tools button{padding:3px 10px;font-size:12px}
+  .hint{color:var(--muted);font-size:12px;margin-left:auto}
+  .badge{display:inline-block;background:#fdecea;color:var(--warn);border-radius:4px;
+         font-size:11px;padding:1px 6px;margin-left:8px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1>图表数据编辑器</h1>
+  <button class="primary" id="run">运行 / 重绘</button>
+  <button class="primary" id="publish" style="background:#0b7a3b;border-color:#0b7a3b">一键绘图 → 写入论文</button>
+  <label class="hint" style="margin-left:0"><input type="checkbox" id="compileToo" checked> 同时编译 PDF</label>
+  <button id="export">导出 JSON</button>
+  <button id="importBtn">导入 JSON</button>
+  <input type="file" id="importFile" accept=".json" hidden>
+  <button id="hist">历史修改记录</button>
+  <button id="reset">恢复默认</button>
+  <span id="dirty">● 有改动未重绘</span>
+  <span class="hint">改数字后点「运行 / 重绘」；数据自动保存在本机浏览器</span>
+</header>
+
+<div id="histPanel"><div class="box">
+  <h2>历史修改记录 <span class="hint" id="histCount"></span>
+      <button id="histClear" style="margin-left:auto">清空记录</button>
+      <button id="histClose">关闭</button></h2>
+  <div class="list" id="histList"></div>
+</div></div>
+
+<main>
+  <aside>
+    <h2>图表</h2>
+    <div id="picker"></div>
+  </aside>
+  <section id="charts"></section>
+</main>
+
+<script>
+/* ------------------------------------------------------------------ 默认数据 */
+const DEFAULTS = {"charts": []};
+
+const PALETTE = ["#2f6fdd","#e8713c","#3aa76d","#9b59b6","#c0392b",
+                 "#16a085","#8e44ad","#d4a017","#5d6d7e","#c2185b"];
+
+/* ------------------------------------------------------------------ 状态 */
+const LS = "figdata_editor_v1";   // never bump: init() merges new charts into the cached state
+let state = load() || structuredClone(DEFAULTS);
+let dirty = false;
+
+function load(){
+  try{ const s = localStorage.getItem(LS); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function save(){
+  try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
+  if (typeof queueHistory === "function") queueHistory();
+}
+function markDirty(){ dirty = true; document.getElementById("dirty").style.display = "inline"; }
+
+/* ---------------------------------------------------------------- 历史记录 */
+const HIS_KEY = LS + "_history";
+const HIS_MAX = 40;
+let HISTORY = [];
+try{ HISTORY = JSON.parse(localStorage.getItem(HIS_KEY) || "[]") || []; }catch(e){ HISTORY = []; }
+const _SNAPS = {};                       // chartId -> last recorded snapshot
+let _hisTimer = null;
+
+function chartSnap(c){
+  return JSON.stringify({rows:c.rows, cols:c.cols, data:c.data, err:c.err || null,
+                         errlo:c.errlo || null, errhi:c.errhi || null});
+}
+function seedSnaps(){
+  state.charts.forEach(c => { if (_SNAPS[c.id] === undefined) _SNAPS[c.id] = chartSnap(c); });
+}
+function persistHistory(){
+  try{ localStorage.setItem(HIS_KEY, JSON.stringify(HISTORY)); }catch(e){}
+}
+function queueHistory(){                 // debounced: one entry per drag/burst
+  clearTimeout(_hisTimer);
+  _hisTimer = setTimeout(recordChanges, 500);
+}
+function recordChanges(){
+  let touched = 0;
+  state.charts.forEach(c => {
+    const now_ = chartSnap(c);
+    if (_SNAPS[c.id] === undefined){ _SNAPS[c.id] = now_; return; }
+    if (_SNAPS[c.id] === now_) return;
+    HISTORY.push({t:Date.now(), id:c.id, name:c.name,
+                  before:_SNAPS[c.id], after:now_});
+    _SNAPS[c.id] = now_;
+    touched++;
+  });
+  if (touched){
+    if (HISTORY.length > HIS_MAX) HISTORY = HISTORY.slice(-HIS_MAX);
+    persistHistory();
+    refreshUndoButtons();
+  }
+}
+
+function diffLines(before, after, max){
+  const a = JSON.parse(before), b = JSON.parse(after);
+  const out = [];
+  const rows = Math.min(a.data.length, b.data.length);
+  for (let i = 0; i < rows; i++){
+    const cs = Math.min(a.data[i].length, b.data[i].length);
+    for (let j = 0; j < cs; j++){
+      if (a.data[i][j] !== b.data[i][j]){
+        out.push((b.cols[j] || "?") + " · " + (b.rows[i] || "?") + "：" +
+                 a.data[i][j] + " → " + b.data[i][j]);
+      }
+    }
+  }
+  if (!out.length) out.push("表格结构变化");
+  if (out.length > max) return out.slice(0, max).concat(["… 共 " + out.length + " 处"]);
+  return out;
+}
+
+function applySnap(id, snap){
+  const c = state.charts.find(x => x.id === id);
+  if (!c) return;
+  const v = JSON.parse(snap);
+  c.rows = v.rows; c.cols = v.cols; c.data = v.data;
+  if (v.err) c.err = v.err;
+  if (v.errlo) c.errlo = v.errlo; else delete c.errlo;
+  if (v.errhi) c.errhi = v.errhi; else delete c.errhi;
+  _SNAPS[id] = snap;
+}
+
+function restoreChart(id){
+  const d = DEFAULTS.charts.find(x => x.id === id);
+  const c = state.charts.find(x => x.id === id);
+  if (!d || !c) return;
+  c.rows = structuredClone(d.rows);
+  c.cols = structuredClone(d.cols);
+  c.data = structuredClone(d.data);
+  if (d.err) c.err = structuredClone(d.err); else delete c.err;
+  if (d.errlo) c.errlo = structuredClone(d.errlo); else delete c.errlo;
+  if (d.errhi) c.errhi = structuredClone(d.errhi); else delete c.errhi;
+  save(); markDirty(); rebuild();
+}
+
+function undoChart(id){
+  for (let k = HISTORY.length - 1; k >= 0; k--){
+    if (HISTORY[k].id !== id) continue;
+    const e = HISTORY.splice(k, 1)[0];
+    applySnap(id, e.before);
+    persistHistory();
+    save(); markDirty(); rebuild();
+    return;
+  }
+  alert("这张图还没有可以回退的改动记录。");
+}
+
+function undoToEntry(idx){
+  const e = HISTORY[idx];
+  if (!e) return;
+  // roll back every entry at or after this one, newest first
+  for (let k = HISTORY.length - 1; k >= idx; k--){
+    applySnap(HISTORY[k].id, HISTORY[k].before);
+  }
+  HISTORY = HISTORY.slice(0, idx);
+  persistHistory();
+  save(); markDirty(); rebuild();
+  renderHistory();
+}
+
+function refreshUndoButtons(){
+  document.querySelectorAll(".undobtn").forEach(b => {
+    const id = b.dataset.chart;
+    b.disabled = !HISTORY.some(e => e.id === id);
+  });
+}
+
+function fmtTime(ms){
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, "0");
+  return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+
+function renderHistory(){
+  const list = document.getElementById("histList");
+  const cnt = document.getElementById("histCount");
+  cnt.textContent = HISTORY.length ? "（" + HISTORY.length + " 条）" : "";
+  if (!HISTORY.length){
+    list.innerHTML = '<div class="empty">还没有改动记录。改数字、拖点或拖柱子之后会记在这里。</div>';
+    return;
+  }
+  list.innerHTML = "";
+  HISTORY.map((e, idx) => ({e, idx})).reverse().forEach(({e, idx}) => {
+    const row = document.createElement("div");
+    row.className = "item";
+    const lines = diffLines(e.before, e.after, 3);
+    row.innerHTML = '<span class="t">' + fmtTime(e.t) + '</span>' +
+      '<div class="body"><div class="nm">' + e.name + '</div>' +
+      '<div class="df">' + lines.map(x => x.replace(/</g, "&lt;")).join("<br>") + '</div></div>';
+    const btn = document.createElement("button");
+    btn.textContent = "回退到此";
+    btn.onclick = () => { if (confirm("把这张图恢复到这次改动之前？")) undoToEntry(idx); };
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById("hist").addEventListener("click", () => {
+  renderHistory();
+  document.getElementById("histPanel").style.display = "block";
+});
+document.getElementById("histClose").addEventListener("click", () => {
+  document.getElementById("histPanel").style.display = "none";
+});
+document.getElementById("histPanel").addEventListener("click", ev => {
+  if (ev.target.id === "histPanel") ev.currentTarget.style.display = "none";
+});
+document.getElementById("histClear").addEventListener("click", () => {
+  if (!confirm("清空历史记录？已经写进论文的图不受影响。")) return;
+  HISTORY = []; persistHistory(); renderHistory(); refreshUndoButtons();
+});
+
+/* ------------------------------------------------------------------ 侧栏 */
+function buildPicker(){
+  const box = document.getElementById("picker");
+  box.innerHTML = "";
+  state.charts.forEach((c, i) => {
+    const l = document.createElement("label");
+    l.innerHTML = `<input type="checkbox" ${c.on ? "checked" : ""} data-i="${i}">
+                   <span>${c.name}${c.todo ? '<span class="badge">待核对</span>' : ""}</span>`;
+    l.querySelector("input").addEventListener("change", e => {
+      state.charts[i].on = e.target.checked; save(); renderAll();
+    });
+    box.appendChild(l);
+  });
+}
+
+/* ------------------------------------------------------------------ 绘图 */
+function renderChart(chart){
+  if (chart.type === "line") return renderLineChart(chart);
+  const W = 720, H = 360;
+  const m = { t: 28, r: 18, b: 96, l: 58 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+
+  const rows = chart.rows, cols = chart.cols, data = chart.data;
+  const nX = rows.length, nS = cols.length;
+  const flat = data.flat().filter(v => v !== null && v !== "" && Number.isFinite(+v));
+  let lo = Math.min(0, ...flat.map(Number)), hi = Math.max(0, ...flat.map(Number));
+  if (hi === lo) hi = lo + 1;
+  const pad = (hi - lo) * 0.12;
+  lo -= (lo < 0 ? pad : 0); hi += pad;
+
+  const y = v => m.t + ph - (v - lo) / (hi - lo) * ph;
+  const zeroY = y(0);
+  const gw = pw / nX, bw = Math.min(46, gw * 0.78 / nS);
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const el = (tag, attrs, txt) => {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (txt !== undefined) e.textContent = txt;
+    svg.appendChild(e); return e;
+  };
+
+  // gridlines + y labels
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++){
+    const v = lo + (hi - lo) * i / ticks, yy = y(v);
+    el("line", {x1:m.l, x2:W-m.r, y1:yy, y2:yy, stroke:"#eef1f4"});
+    el("text", {x:m.l-8, y:yy+4, "text-anchor":"end", "font-size":10, fill:"#697386"},
+       (+v).toFixed(1));
+  }
+  el("line", {x1:m.l, x2:W-m.r, y1:zeroY, y2:zeroY, stroke:"#9aa5b1"});
+
+  // bars
+  const hits = [];
+  chart._barEls = {};
+  chart._barDeco = {};
+  rows.forEach((rName, ri) => {
+    const cx = m.l + gw * (ri + 0.5);
+    const startX = cx - (nS * bw) / 2;
+    cols.forEach((cName, si) => {
+      const raw = data[ri][si];
+      if (raw === null || raw === "" ) return;
+      const v = +raw;
+      if (!Number.isFinite(v)) return;
+      const x = startX + si * bw;
+      const yTop = v >= 0 ? y(v) : zeroY;
+      const h = Math.abs(y(v) - zeroY);
+      const bar = el("rect", {x, y:yTop, width:bw*0.88, height:Math.max(h,0.6),
+                  fill:PALETTE[si % PALETTE.length], rx:2, opacity:.92});
+      chart._barEls[ri + "," + si] = bar;
+      const deco = [];
+      chart._barDeco[ri + "," + si] = deco;
+      hits.push({x, ri, si});
+      const eRaw = chart.err ? chart.err[ri] && chart.err[ri][si] : null;
+      if (eRaw !== null && eRaw !== undefined && Number.isFinite(+eRaw) && +eRaw > 0) {
+        const e = +eRaw, xc = x + bw * 0.44;
+        const y1 = y(v + e), y2 = y(v - e);
+        deco.push(el("line", {x1:xc, y1, x2:xc, y2, stroke:"#2b2b2b", "stroke-width":1}));
+        deco.push(el("line", {x1:xc-3, y1, x2:xc+3, y2:y1, stroke:"#2b2b2b", "stroke-width":1}));
+        deco.push(el("line", {x1:xc-3, y1:y2, x2:xc+3, y2, stroke:"#2b2b2b", "stroke-width":1}));
+      }
+      if (Math.abs(h) > 14){
+        deco.push(el("text", {x:x + bw*0.44, y: v>=0 ? yTop-4 : yTop+h+11,
+                    "text-anchor":"middle", "font-size":9,
+                    fill: v>=0 ? "#1d2129" : PALETTE[si % PALETTE.length]},
+           v.toFixed(v % 1 === 0 ? 0 : 2)));
+      }
+    });
+    // x labels (rotated)
+    const lx = m.l + gw * (ri + 0.5), ly = H - m.b + 14;
+    el("text", {x:lx, y:ly, "text-anchor":"end", "font-size":10.5, fill:"#1d2129",
+                transform:`rotate(-38 ${lx} ${ly})`}, rName);
+  });
+
+  // transparent grab zones, drawn last so they sit above the bars and labels
+  hits.forEach(h => {
+    const hit = el("rect", {x:h.x, y:m.t, width:bw*0.88, height:ph, fill:"transparent"});
+    hit.style.cursor = "ns-resize";
+    hit.addEventListener("pointerdown", ev => startBarDrag(chart, h.ri, h.si, ev));
+  });
+
+  // legend
+  let lx0 = m.l;
+  cols.forEach((cName, si) => {
+    el("rect", {x:lx0, y:8, width:10, height:10, fill:PALETTE[si % PALETTE.length], rx:2});
+    const t = el("text", {x:lx0+14, y:17, "font-size":11, fill:"#1d2129"}, cName);
+    lx0 += 26 + cName.length * 6.6;
+  });
+
+  el("text", {x:m.l, y:H-8, "font-size":10, fill:"#9aa5b1"}, "单位：" + (chart.unit || ""));
+
+  chart._barCtx = { svg, lo, hi, m, ph, W, Y:y };
+
+  const wrap = document.createElement("div");
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function renderLineChart(chart){
+  const W = 720, H = 380;
+  const m = { t: 26, r: 18, b: 64, l: 58 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const el = (tag, attrs, txt) => {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (txt !== undefined) e.textContent = txt;
+    svg.appendChild(e); return e;
+  };
+
+  const xs = chart.rows.map(r => parseFloat(r)).map((v, i) => Number.isFinite(v) ? v : i);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const flat = [];
+  chart.data.forEach(row => row.forEach(v => {
+    if (v !== null && v !== "" && Number.isFinite(+v)) flat.push(+v);
+  }));
+  if (!flat.length) flat.push(0, 1);
+  let lo = Math.min(...flat), hi = Math.max(...flat);
+  const pad = (hi - lo) * 0.1 || 1;
+  lo -= pad; hi += pad;
+
+  const X = v => m.l + (xMax === xMin ? pw / 2 : (v - xMin) / (xMax - xMin) * pw);
+  const Y = v => m.t + ph - (v - lo) / (hi - lo) * ph;
+
+  for (let i = 0; i <= 4; i++){
+    const v = lo + (hi - lo) * i / 4, yy = Y(v);
+    el("line", {x1:m.l, x2:W-m.r, y1:yy, y2:yy, stroke:"#eef1f4"});
+    el("text", {x:m.l-8, y:yy+4, "text-anchor":"end", "font-size":10, fill:"#697386"}, v.toFixed(1));
+  }
+  el("line", {x1:m.l, x2:W-m.r, y1:Y(0), y2:Y(0), stroke:"#9aa5b1"});
+
+  const palette = ["#b2182b","#ef8a62","#bdbdbd","#2166ac","#762a83","#1b7837","#8c510a","#4d4d4d","#2f6fdd","#16a085"];
+  const paths = [], circles = [], hits = [];
+
+  const lk = chart._lock || null;
+  chart.cols.forEach((name, j) => {
+    const col = palette[j % palette.length];
+    const isDim = lk && lk.series !== null && lk.series !== j;
+    const onlyPoint = lk && lk.mode === "point";
+    const onlyLine = lk && lk.mode === "line";
+    const path = el("path", {fill:"none", stroke:col, "stroke-width":1.6, "stroke-linejoin":"round"});
+    if (isDim) path.setAttribute("opacity", 0.18);
+    paths.push(path);
+    const hit = el("path", {fill:"none", stroke:"transparent", "stroke-width":14,
+                            "stroke-linecap":"round", "stroke-linejoin":"round"});
+    if (isDim || onlyPoint){
+      hit.style.pointerEvents = "none";
+    } else {
+      hit.style.cursor = "ns-resize";
+      hit.addEventListener("pointerdown", ev => startSeriesDrag(chart, j, ev));
+    }
+    if (lk && lk.series === j) hit.setAttribute("stroke", "rgba(47,111,221,0.13)");
+    hits.push(hit);
+    const row = [];
+    xs.forEach((x, i) => {
+      const v = chart.data[i] ? chart.data[i][j] : null;
+      if (v === null || v === "" || !Number.isFinite(+v)) { row.push(null); return; }
+      const c = el("circle", {cx:X(x), cy:Y(+v), r:3.2, fill:col,
+                              "data-i":i, "data-j":j});
+      if (isDim || onlyLine){
+        c.style.pointerEvents = "none";
+      } else {
+        c.style.cursor = "ns-resize";
+        c.addEventListener("pointerdown", ev => startDrag(chart, i, j, ev));
+      }
+      if (isDim) c.setAttribute("opacity", 0.18);
+      if (lk && lk.series === j) c.setAttribute("r", 4.2);
+      row.push(c);
+    });
+    circles.push(row);
+    redrawSeries(path, row);
+    redrawSeries(hit, row);
+  });
+
+  function redrawSeries(path, row){
+    let d = "";
+    row.forEach(c => {
+      if (!c) return;
+      d += (d ? "L" : "M") + (+c.getAttribute("cx")).toFixed(1) + " " +
+           (+c.getAttribute("cy")).toFixed(1) + " ";
+    });
+    path.setAttribute("d", d);
+  }
+  chart._redrawSeries = redrawSeries;
+
+  xs.forEach((x, i) => {
+    el("text", {x:X(x), y:H-m.b+18, "text-anchor":"middle", "font-size":10, fill:"#1d2129"},
+       chart.rows[i]);
+  });
+  el("text", {x:m.l + pw/2, y:H-10, "text-anchor":"middle", "font-size":10.5, fill:"#1d2129"},
+     chart.xlabel || "");
+  el("text", {x:14, y:m.t + ph/2, "font-size":10.5, fill:"#1d2129",
+              transform:`rotate(-90 14 ${m.t + ph/2})`, "text-anchor":"middle"}, chart.unit || "dB");
+
+  let lx = m.l, ly = 12;
+  chart.cols.forEach((name, j) => {
+    const est = 22 + name.length * 6.2;
+    if (lx + est > W - m.r){ lx = m.l; ly += 14; }
+    el("rect", {x:lx, y:ly-8, width:10, height:3, fill:palette[j % palette.length]});
+    el("text", {x:lx+14, y:ly-2, "font-size":9.5, fill:"#1d2129"}, name);
+    lx += est;
+  });
+
+  /* 拖拽上下文：把像素换算回数值时需要同一套坐标 */
+  chart._dragCtx = { svg, lo, hi, m, ph, W, Y, paths, circles, hits: hits,
+                     redraw: redrawSeries };
+
+  const wrap = document.createElement("div");
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/* 拖动时跟随鼠标的白色数值框 */
+let _tip = null;
+function tipEl(){
+  if (!_tip){
+    _tip = document.createElement("div");
+    _tip.style.cssText =
+      "position:fixed;z-index:9999;background:#fff;color:#1d2129;" +
+      "border:1px solid #b9c0c8;border-radius:4px;padding:2px 8px;" +
+      "font:12px/1.6 -apple-system,'Segoe UI',Roboto,'Microsoft YaHei',sans-serif;" +
+      "box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:none;display:none;" +
+      "white-space:nowrap";
+    document.body.appendChild(_tip);
+  }
+  return _tip;
+}
+function showTip(ev, text){
+  const t = tipEl();
+  t.textContent = text;
+  t.style.display = "block";
+  t.style.left = (ev.clientX + 14) + "px";
+  t.style.top = (ev.clientY - 28) + "px";
+}
+function hideTip(){ if (_tip) _tip.style.display = "none"; }
+
+function tipText(chart, si, v){
+  return (chart.cols[si] || "") + "：" + Number(v).toFixed(2) +
+         (chart.unit ? " " + chart.unit : "");
+}
+
+function startDrag(chart, i, j, ev){
+  const ctx = chart._dragCtx;
+  if (!ctx) return;
+  ev.preventDefault();
+  const circle = ctx.circles[j][i];
+  if (!circle) return;
+  circle.setAttribute("r", 4.6);
+
+  const toValue = clientY => {
+    const rect = ctx.svg.getBoundingClientRect();
+    const sy = ctx.W / rect.width;
+    const yv = (clientY - rect.top) * sy;
+    let v = ctx.lo + (ctx.m.t + ctx.ph - yv) / ctx.ph * (ctx.hi - ctx.lo);
+    return Math.min(ctx.hi, Math.max(ctx.lo, v));
+  };
+
+  const move = e => {
+    const v = toValue(e.clientY);
+    chart.data[i][j] = Math.round(v * 100) / 100;
+    circle.setAttribute("cy", ctx.Y(v));
+    ctx.redraw(ctx.paths[j], ctx.circles[j]);
+    syncCell(chart, i, j, chart.data[i][j]);
+    showTip(e, tipText(chart, j, chart.data[i][j]));
+  };
+  const up = () => {
+    hideTip();
+    circle.setAttribute("r", 3.2);
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    save();
+    scheduleLive(chart);   // 松手后重画，让纵轴重新自适应
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function startBarDrag(chart, ri, si, ev){
+  const ctx = chart._barCtx;
+  if (!ctx) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const rect = ctx.svg.getBoundingClientRect();
+  const sy = ctx.W / rect.width;
+  const toValue = clientY => {
+    const yv = (clientY - rect.top) * sy;
+    const v = ctx.lo + (ctx.m.t + ctx.ph - yv) / ctx.ph * (ctx.hi - ctx.lo);
+    return Math.min(ctx.hi, Math.max(ctx.lo, v));
+  };
+  const bar = (chart._barEls || {})[ri + "," + si];
+  const move = e => {
+    const v = Math.round(toValue(e.clientY) * 100) / 100;
+    chart.data[ri][si] = v;
+    syncCell(chart, ri, si, v);
+    showTip(e, tipText(chart, si, v));
+    if (bar){
+      // only the dragged bar moves; whiskers and the label come back on release
+      bar.setAttribute("y", v >= 0 ? ctx.Y(v) : ctx.Y(0));
+      bar.setAttribute("height", Math.max(Math.abs(ctx.Y(v) - ctx.Y(0)), 0.6));
+      ((chart._barDeco || {})[ri + "," + si] || []).forEach(n => n.setAttribute("display", "none"));
+    }
+  };
+  const up = () => {
+    hideTip();
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    save();
+    scheduleLive(chart);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function startSeriesDrag(chart, j, ev){
+  const ctx = chart._dragCtx;
+  if (!ctx) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  const startY = ev.clientY;
+  const startVals = chart.data.map(row =>
+    (row && row[j] !== null && row[j] !== "" && Number.isFinite(+row[j])) ? +row[j] : null);
+  const circleRow = ctx.circles[j];
+
+  const move = e => {
+    const rect = ctx.svg.getBoundingClientRect();
+    const sy = ctx.W / rect.width;
+    const dv = -((e.clientY - startY) * sy) / ctx.ph * (ctx.hi - ctx.lo);
+    startVals.forEach((v0, i) => {
+      if (v0 === null) return;
+      const v = Math.round((v0 + dv) * 100) / 100;
+      chart.data[i][j] = v;
+      const c = circleRow[i];
+      if (c) c.setAttribute("cy", ctx.Y(v));
+      syncCell(chart, i, j, v);
+    });
+    ctx.redraw(ctx.paths[j], circleRow);
+    ctx.redraw(ctx.hits[j], circleRow);
+
+    // value of the row nearest the pointer
+    const prect = ctx.svg.getBoundingClientRect();
+    const px = (e.clientX - prect.left) * (ctx.W / prect.width);
+    let best = -1, bd = 1e9;
+    circleRow.forEach((c, idx) => {
+      if (!c) return;
+      const d = Math.abs(+c.getAttribute("cx") - px);
+      if (d < bd){ bd = d; best = idx; }
+    });
+    if (best >= 0) showTip(e, tipText(chart, j, chart.data[best][j]));
+  };
+  const up = () => {
+    hideTip();
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    save();
+    scheduleLive(chart);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function syncCell(chart, i, j, v){
+  const inputs = chart._cellInputs || {};
+  const inp = inputs[i + "," + j];
+  if (inp) inp.value = v;
+}
+
+/* ------------------------------------------------------------------ 表格 */
+function renderTable(chart){
+  const t = document.createElement("table");
+  const thead = document.createElement("tr");
+  thead.innerHTML = `<th class="rowhead">${chart.orient === "rows" ? "条目 \\ 指标" : ""}</th>` +
+    chart.cols.map((c, ci) =>
+      `<th><input class="txt" value="${c}" data-k="col" data-ci="${ci}"></th>`).join("") +
+    `<th style="width:34px"></th>`;
+  t.appendChild(thead);
+
+  chart._cellInputs = {};
+  const isErr = !!chart._errMode;
+  if (isErr && !chart.err) chart.err = chart.data.map(r => r.map(() => 0));
+  const src = isErr ? chart.err : chart.data;
+  const rowInputs = isErr ? "" : "";
+  chart.rows.forEach((r, ri) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td class="rowhead">${isErr ? "" : `<input class="txt" value="${r}" data-k="row" data-ri="${ri}">`}${isErr ? r : ""}</td>` +
+      chart.cols.map((_, ci) =>
+        `<td><input type="number" step="0.01" value="${src[ri][ci] ?? ""}" data-k="val" data-ri="${ri}" data-ci="${ci}"></td>`).join("") +
+      `<td><button data-k="delrow" data-ri="${ri}" title="删除该行">×</button></td>`;
+    t.appendChild(tr);
+  });
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td colspan="${chart.cols.length + 2}" style="text-align:left;background:#fafbfc">
+      <button data-k="addrow">+ 加一行</button>
+      <button data-k="addcol">+ 加一列</button></td>`;
+  t.appendChild(tr);
+
+  t.querySelectorAll('input[data-k="val"]').forEach(inp => {
+    chart._cellInputs[inp.dataset.ri + "," + inp.dataset.ci] = inp;
+  });
+  t.addEventListener("input", e => {
+    const el = e.target, k = el.dataset.k;
+    if (k === "row") chart.rows[+el.dataset.ri] = el.value;
+    if (k === "col") chart.cols[+el.dataset.ci] = el.value;
+    if (k === "val") {
+      const ri = +el.dataset.ri, ci = +el.dataset.ci;
+      const tgt = chart._errMode ? chart.err : chart.data;
+      tgt[ri][ci] = el.value === "" ? null : +el.value;
+    }
+    save();
+    scheduleLive(chart);
+  });
+  t.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const k = b.dataset.k;
+    if (k === "delrow"){
+      const i = +b.dataset.ri; chart.rows.splice(i,1); chart.data.splice(i,1);
+      if (chart.err) chart.err.splice(i,1);
+    }
+    if (k === "addrow"){
+      chart.rows.push("新条目"); chart.data.push(chart.cols.map(() => 0));
+      if (chart.err) chart.err.push(chart.cols.map(() => 0));
+    }
+    if (k === "addcol"){
+      chart.cols.push("新指标"); chart.data.forEach(r => r.push(0));
+      if (chart.err) chart.err.forEach(r => r.push(0));
+    }
+    save(); markDirty(); rebuild();
+  });
+  return t;
+}
+
+/* 立刻重画一张图（锁定模式切换时用，不需要防抖） */
+function refreshChartBox(chart){
+  if (!chart._box) return;
+  const fresh = renderChart(chart);
+  chart._box.innerHTML = "";
+  chart._box.appendChild(fresh);
+}
+
+/* 输入即刷新：只重画那张图的 SVG，不动表格，避免输入框失焦 */
+const _liveTimers = {};
+function scheduleLive(chart){
+  clearTimeout(_liveTimers[chart.id]);
+  _liveTimers[chart.id] = setTimeout(() => {
+    if (!chart._box) return;
+    const fresh = renderChart(chart);
+    chart._box.innerHTML = "";
+    chart._box.appendChild(fresh);
+  }, 180);
+}
+
+/* ------------------------------------------------------------------ 主流程 */
+function rebuild(){
+  buildPicker();
+  renderAll();
+}
+
+function downloadSVG(svgEl, name){
+  if (!svgEl) return;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const vb = svgEl.getAttribute("viewBox").split(" ");
+  clone.setAttribute("width", vb[2]); clone.setAttribute("height", vb[3]);
+  const data = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([data], {type:"image/svg+xml;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name + ".svg";
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function downloadPNG(svgEl, name, scale){
+  if (!svgEl) return;
+  scale = scale || 3;
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const vb = svgEl.getAttribute("viewBox").split(" ");
+  const w = +vb[2], h = +vb[3];
+  clone.setAttribute("width", w); clone.setAttribute("height", h);
+  const svgStr = new XMLSerializer().serializeToString(clone);
+
+  // 白底，避免 PNG 透明
+  const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  bg.setAttribute("x",0); bg.setAttribute("y",0);
+  bg.setAttribute("width", w); bg.setAttribute("height", h);
+  bg.setAttribute("fill", "#ffffff");
+  clone.insertBefore(bg, clone.firstChild);
+
+  const data = new XMLSerializer().serializeToString(clone);
+  const img = new Image();
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(data);
+  img.onload = () => {
+    const cv = document.createElement("canvas");
+    cv.width = w * scale; cv.height = h * scale;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    cv.toBlob(b => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = name + "@" + scale + "x.png";
+      a.click(); URL.revokeObjectURL(a.href);
+    }, "image/png");
+  };
+  img.src = url;
+}
+
+function renderAll(){
+  const host = document.getElementById("charts");
+  host.innerHTML = "";
+  state.charts.filter(c => c.on).forEach(c => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<h3><span>${c.name}${c.todo ? '<span class="badge">有占位数据待核对</span>' : ""}</span>
+                        <button class="resetbtn" data-chart="${c.id}" title="把这张图恢复成实测的原始数据，并重新生成这张图">↺ 恢复原始</button>
+                        <button class="undobtn" data-chart="${c.id}" title="回退这张图的上一次改动">↶ 回退</button></h3>
+                      <div class="sub">${c.type === "line" ? "拖圆点改单点、拖整条线平移整组；也可在下方表格里改。" : "条形可直接上下拖动；也可在下方表格里改。"} 改完后点上方「运行 / 重绘」。
+                        ${c.type === "line" ? "" : `<label style="margin-left:10px;color:#1d2129"><input type="checkbox" class="errmode" ${c._errMode?"checked":""}> 编辑误差 ±</label>`}
+                      </div>`;
+    const ub = card.querySelector(".undobtn");
+    if (ub) ub.onclick = () => undoChart(c.id);
+    const rb = card.querySelector(".resetbtn");
+    if (rb) rb.onclick = () => {
+      if (!confirm("把「" + c.name + "」恢复成实测的原始数据，并重新生成这张图？\n\n" +
+                   "其他图不受影响；恢复后仍可用「↶ 回退」撤销。")) return;
+      restoreChart(c.id);
+      publish([c.id]);
+    };
+    const em = card.querySelector(".errmode");
+    if (em) em.addEventListener("change", e => { c._errMode = e.target.checked; rebuild(); });
+    if (c.type === "line"){
+      const lk = c._lock || null;
+      const opts = ['<option value="">全部模型</option>']
+        .concat(c.cols.map((n, k) => '<option value="' + k + '"' +
+                (lk && lk.series === k ? " selected" : "") + '>' + n + '</option>')).join("");
+      const lb = document.createElement("div");
+      lb.className = "lockbar" + (lk ? " on" : "");
+      lb.innerHTML =
+        '<label><input type="checkbox" class="lockon" ' + (lk ? "checked" : "") +
+        '> <b>高级选择</b></label>' +
+        '<span class="lkfields" style="' + (lk ? "" : "display:none") + ';display:' +
+        (lk ? "inline-flex" : "none") + ';gap:9px;align-items:center">' +
+        '<select class="lockseries">' + opts + '</select>' +
+        '<select class="lockmode">' +
+        '<option value="point"' + (lk && lk.mode === "line" ? "" : " selected") + '>拖动单个点</option>' +
+        '<option value="line"' + (lk && lk.mode === "line" ? " selected" : "") + '>拖动整条线</option>' +
+        '</select></span>' +
+        '<span class="hint">锁定后只有选中的对象响应拖动</span>';
+      const fields = lb.querySelector(".lkfields");
+      const selS = lb.querySelector(".lockseries");
+      const selM = lb.querySelector(".lockmode");
+      const apply = () => {
+        c._lock = lb.querySelector(".lockon").checked
+          ? {series: selS.value === "" ? null : +selS.value, mode: selM.value}
+          : null;
+        lb.classList.toggle("on", !!c._lock);
+        fields.style.display = c._lock ? "inline-flex" : "none";
+        refreshChartBox(c);
+      };
+      lb.querySelector(".lockon").onchange = apply;
+      selS.onchange = apply;
+      selM.onchange = apply;
+      card.appendChild(lb);
+    }
+    const chartWrap = renderChart(c);
+    const box = document.createElement("div");
+    box.className = "chartbox";
+    box.appendChild(chartWrap);
+    c._box = box;
+    card.appendChild(box);
+    card.appendChild(renderTable(c));
+
+    const tools = document.createElement('div');
+    tools.className = 'tools';
+    const svgEl = () => card.querySelector('svg');
+    const btnSvg = document.createElement('button');
+    btnSvg.textContent = '下载 SVG';
+    btnSvg.onclick = () => downloadSVG(svgEl(), c.id);
+    const btnPng = document.createElement('button');
+    btnPng.textContent = '下载 PNG (3×)';
+    btnPng.onclick = () => downloadPNG(svgEl(), c.id);
+    const btnOne = document.createElement('button');
+    btnOne.textContent = '只保存这张图';
+    btnOne.style.cssText = 'background:#0b7a3b;border-color:#0b7a3b;color:#fff;font-weight:600';
+    btnOne.title = '只重绘并写入这张图，不编译论文，也不动其他图';
+    btnOne.onclick = () => publish([c.id]);
+    tools.appendChild(btnOne);
+    tools.appendChild(btnSvg); tools.appendChild(btnPng);
+    card.appendChild(tools);
+
+    host.appendChild(card);
+  });
+  if (!state.charts.some(c => c.on)){
+    host.innerHTML = `<div class="card">左侧勾选要显示的图表。</div>`;
+  }
+  dirty = false;
+  document.getElementById("dirty").style.display = "none";
+}
+
+document.getElementById("run").addEventListener("click", renderAll);
+
+document.getElementById("export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "figure_data.json";
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("importBtn").addEventListener("click",
+  () => document.getElementById("importFile").click());
+
+document.getElementById("importFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { state = JSON.parse(r.result); save(); rebuild(); }
+    catch (err){ alert("JSON 解析失败：" + err.message); }
+  };
+  r.readAsText(f);
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  if (!confirm("恢复为内置默认数据？当前改动会丢失。")) return;
+  state = structuredClone(DEFAULTS); save(); rebuild();
+});
+
+async function publish(only){
+  // only = [chartId] -> redraw just that figure, and never compile the PDF
+  const compile = !only && document.getElementById("compileToo").checked;
+  const url = "/api/render?compile=" + (compile ? 1 : 0) +
+              (only ? "&only=" + encodeURIComponent(only.join(",")) : "");
+  try {
+    const r = await fetch(url, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(state)
+    });
+    const j = await r.json();
+    if (!j.ok) { alert("生成失败：\n" + (j.error || "unknown")); return; }
+    alert((only ? "只重绘了这张：\n" : "已写入：\n") + j.figures.join("\n") +
+          (compile ? ("\n\nPDF：" + (j.pdf ? "编译成功 " + (j.pages || "") : "编译失败")) : "") +
+          (j.log ? ("\n\n" + j.log.slice(-600)) : ""));
+  } catch (e) {
+    alert("没有连上本地服务。\n\n请先运行：\n" +
+          "python figure_editor/serve.py\n\n" +
+          "然后在浏览器打开 http://127.0.0.1:8765/");
+  }
+}
+
+document.getElementById("publish").addEventListener("click", () => publish(null));
+
+/* 载入磁盘上的 figure_data.json：
+   - 没有本地缓存 -> 直接用它
+   - 有本地缓存 -> 保留用户改过的图，补上 JSON 里新增的图（例如折线图） */
+(function init(){
+  const hadLocal = !!localStorage.getItem(LS);
+  // 本地缓存可能缺少后来加入的图（例如折线图）：先用内置默认补齐
+  if (hadLocal) {
+    const known = new Set(DEFAULTS.charts.map(c => c.id));
+    state.charts = state.charts.filter(c => known.has(c.id));   // drop retired charts
+    const have = new Set(state.charts.map(c => c.id));
+    DEFAULTS.charts.forEach(c => { if (!have.has(c.id)) state.charts.push(structuredClone(c)); });
+  }
+  fetch("figure_data.json", {cache:"no-store"})
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      if (!j || !j.charts) return;
+      if (!hadLocal) { state = j; save(); return; }
+      const have = new Set(state.charts.map(c => c.id));
+      let added = 0;
+      j.charts.forEach(c => { if (!have.has(c.id)) { state.charts.push(c); added++; } });
+      if (added) { save(); console.log("loaded", added, "new charts from disk"); }
+    })
+    .catch(() => {})
+    .finally(() => { seedSnaps(); rebuild(); refreshUndoButtons(); });
+})();
+</script>
+</body>
+</html>
